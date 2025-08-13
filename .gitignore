@@ -1,0 +1,57 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.env
+.venv/
+.venv
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build / packaging
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Database / caches (example from your project)
+data/cache.db
+data/*.db
+
+# Secrets / keys
+*.pem
+*.key
+
+# Streamlit (user state)
+.streamlit/
+
+# Misc
+coverage.xml
+.env.local
+.env.*.local
+
+# Optional: lockfiles you might not want to commit
+Pipfile.lock
