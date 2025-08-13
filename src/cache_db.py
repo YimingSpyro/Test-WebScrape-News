@@ -9,23 +9,20 @@ from typing import Optional, Any
 
 class CacheDB:
     def __init__(self, path: Optional[str] = None):
-        # allow override via env var
         default = "data/cache.db"
         self.path = path or os.environ.get("CACHE_DB_PATH", default)
-        # ensure absolute path
         self.path = os.path.abspath(self.path)
 
-        # try to create parent dir
+        # Try to create parent dir (may fail on some hosts)
         dirpath = os.path.dirname(self.path)
         try:
             os.makedirs(dirpath, exist_ok=True)
         except Exception as e:
             warnings.warn(f"Could not create directory {dirpath}: {e}. Falling back to temp dir.")
             tmp = tempfile.gettempdir()
-            # keep filename, put in tmp
             self.path = os.path.join(tmp, os.path.basename(self.path))
 
-        # try to initialize DB; if that fails, fallback to in-memory DB
+        # Try to init DB; fallback to in-memory if still failing
         try:
             self._init_db()
         except sqlite3.OperationalError as e:
@@ -34,6 +31,7 @@ class CacheDB:
             self._init_db()
 
     def _init_db(self):
+        # check_same_thread=False for multi-threaded environments like Streamlit's worker threads
         conn = sqlite3.connect(self.path, check_same_thread=False)
         c = conn.cursor()
         c.execute("""

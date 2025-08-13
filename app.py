@@ -50,23 +50,27 @@ if st.button("Fetch & Summarize"):
         cached = cache.get(url) if use_cache else None
         if cached:
             st.info("Using cached summary (within 24h).")
+            summary_obj = cached.get("summary") or {}
+            meta_obj = cached.get("meta") or {}
             st.markdown("**Summary (json)**")
-            st.write(cached["summary"]["summary"])
-            st.markdown("**Sentiment / Topic**")
-            st.write(cached["summary"]["topic"])
-            st.write(cached["summary"]["sentiment"])
-
+            st.json(summary_obj)
+            st.markdown("**Summary (text)**")
+            st.write(summary_obj.get("summary", ""))
+            st.markdown("**Meta (topic / sentiment)**")
+            st.write(meta_obj)
         else:
             st.info("No cached summary — generating via Gemini...")
             with st.spinner("Chunking and calling Gemini (may take a few seconds)..."):
                 chunks = chunk_text(cleaned, max_chars=max_chars)
-                summary, meta = summarize_article_with_gemini(chunks, model=model)
-                st.markdown("**3-sentence summary**")
-                st.write(summary["summary"]["summary"])
+                summary_obj, meta_obj = summarize_article_with_gemini(chunks, model=model)
+                st.markdown("**3-sentence summary (json)**")
+                st.json(summary_obj)
+                st.markdown("**3-sentence summary (text)**")
+                st.write(summary_obj.get("summary", ""))
                 st.markdown("**Meta (topic / sentiment)**")
-                st.write(meta)
-
-                cache.save(url, article.get("title",""), summary, meta)
+                st.write(meta_obj)
+                # save same shapes to DB
+                cache.save(url, article.get("title",""), summary_obj, meta_obj)
 
 st.markdown("---")
 st.write("Notes: respects robots.txt heuristics? This demo does not fully enforce robots.txt — do not scrape disallowed sites in production.")

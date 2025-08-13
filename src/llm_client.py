@@ -108,9 +108,10 @@ def _call_gemini(prompt, model="gemini-2.5-flash", max_output_tokens=256, retrie
     # should not reach here
     raise RuntimeError(f"Gemini generate call failed; last error: {last_err}")
 
+# inside src/llm_client.py (replace the previous summarize_article_with_gemini)
 def summarize_article_with_gemini(chunks, model="gemini-2.5-flash"):
     if not isinstance(chunks, (list, tuple)) or len(chunks) == 0:
-        return {"summary": "", "topic": "", "sentiment": ""}, {"topic": "", "sentiment": ""}
+        return {"summary": ""}, {"topic": "", "sentiment": ""}
 
     chunk_summaries = []
     for c in tqdm(chunks, desc="Summarizing chunks", leave=False):
@@ -130,25 +131,27 @@ def summarize_article_with_gemini(chunks, model="gemini-2.5-flash"):
         "2) One short topic tag (one or two words).\n"
         "3) A sentiment label: positive / neutral / negative.\n\n"
         "CHUNK SUMMARIES:\n" + "\n\n".join(f"{i+1}. {s}" for i, s in enumerate(chunk_summaries)) + "\n\n"
-        "Output JSON only in the form:\n"
+        "Output JSON ONLY in the form:\n"
         '{"summary":"...","topic":"...", "sentiment":"..."}'
     )
     agg = _call_gemini(aggregate_prompt, model=model, max_output_tokens=250)
 
     out = {"summary": agg.strip(), "topic": "", "sentiment": ""}
     try:
+        # try to find and parse JSON
         js_start = agg.find("{")
         if js_start != -1:
             js = agg[js_start:]
             parsed = json.loads(js)
             out = parsed
         else:
-            # If not valid JSON, return the raw string inside summary
+            # If not valid JSON, put the raw text into summary
             out = {"summary": agg.strip(), "topic": "", "sentiment": ""}
     except Exception:
         out = {"summary": agg.strip(), "topic": "", "sentiment": ""}
 
-    # Return a summary dict and a meta dict (keeps compatibility with UI)
-    meta = {"topic": out.get("topic", ""), "sentiment": out.get("sentiment", "")}
-    return out, meta
+    summary_dict = {"summary": out.get("summary", "")}
+    meta_dict = {"topic": out.get("topic", ""), "sentiment": out.get("sentiment", "")}
+    return summary_dict, meta_dict
+
 
