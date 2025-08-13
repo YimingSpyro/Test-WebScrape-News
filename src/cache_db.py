@@ -1,16 +1,40 @@
-# src/cache_db.py  (overwrite existing)
+# src/cache_db.py
+import os
 import sqlite3
 import json
 import time
+import tempfile
+import warnings
 from typing import Optional, Any
 
 class CacheDB:
-    def __init__(self, path="data/cache.db"):
-        self.path = path
-        self._init_db()
+    def __init__(self, path: Optional[str] = None):
+        # allow override via env var
+        default = "data/cache.db"
+        self.path = path or os.environ.get("CACHE_DB_PATH", default)
+        # ensure absolute path
+        self.path = os.path.abspath(self.path)
+
+        # try to create parent dir
+        dirpath = os.path.dirname(self.path)
+        try:
+            os.makedirs(dirpath, exist_ok=True)
+        except Exception as e:
+            warnings.warn(f"Could not create directory {dirpath}: {e}. Falling back to temp dir.")
+            tmp = tempfile.gettempdir()
+            # keep filename, put in tmp
+            self.path = os.path.join(tmp, os.path.basename(self.path))
+
+        # try to initialize DB; if that fails, fallback to in-memory DB
+        try:
+            self._init_db()
+        except sqlite3.OperationalError as e:
+            warnings.warn(f"Failed to initialize DB at {self.path}: {e}. Using in-memory DB instead.")
+            self.path = ":memory:"
+            self._init_db()
 
     def _init_db(self):
-        conn = sqlite3.connect(self.path)
+        conn = sqlite3.connect(self.path, check_same_thread=False)
         c = conn.cursor()
         c.execute("""
         CREATE TABLE IF NOT EXISTS summaries (
@@ -25,7 +49,7 @@ class CacheDB:
         conn.close()
 
     def get(self, url: str, max_age_seconds: int = 86400) -> Optional[dict]:
-        conn = sqlite3.connect(self.path)
+        conn = sqlite3.connect(self.path, check_same_thread=False)
         c = conn.cursor()
         c.execute("SELECT title, summary, meta, ts FROM summaries WHERE url = ?", (url,))
         r = c.fetchone()
@@ -35,7 +59,6 @@ class CacheDB:
         title, summary_json, meta_json, ts = r
         if int(time.time()) - ts > max_age_seconds:
             return None
-        # safe loads — tolerate plain strings
         try:
             summary_obj = json.loads(summary_json)
         except Exception:
@@ -47,7 +70,7 @@ class CacheDB:
         return {"title": title, "summary": summary_obj, "meta": meta_obj}
 
     def save(self, url: str, title: str, summary: Any, meta: Any):
-        conn = sqlite3.connect(self.path)
+        conn = sqlite3.connect(self.path, check_same_thread=False)
         c = conn.cursor()
         c.execute("""
         INSERT OR REPLACE INTO summaries (url, title, summary, meta, ts)
